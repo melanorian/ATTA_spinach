@@ -1,0 +1,615 @@
+---
+title: "MM20220606_MM119_MM120_MM129_MM130_CFU"
+author: "Melanie Mendel"
+date: "11-3-2022"
+output: html_document
+---
+# set wd for whole document
+setwd("C:/Users/Mende012/Documents/Bioinformatics/CFU_counts")
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# clean environment
+```{r}
+rm(list=ls())
+```
+
+
+
+```{r cars}
+library(ggplot2)
+library(dplyr)
+library(multcompView)
+library(agricolae)
+library(ggsignif)
+library(ggpubr)
+library("report")
+library("ggpubr")
+library(tidyverse)
+```
+
+
+# filter for samples of interest 
+```{r}
+full_list <- read.delim("C:/Users/Le Roy/Enviormental biology/Major project/LDM20230330_CFU_count_calculations_AGL1_effect_on_pst.txt")
+head(full_list)
+
+#filter out all samples at t2
+#filter for 0.2 OD
+
+# Subset data for each of the four bar plots
+ALG1 <- subset(full_list, Combination == "ALG1")
+AGL1_D36E <- subset(full_list, Combination == "AGL1_D36E")
+AGL1_D36E_HopM1 <- subset(full_list, Combination == "AGL1_D36E+HopM1")
+D36E <- subset(full_list, Combination == "D36E")
+
+# Create bar plot for ALG1 subset
+ALG1_plot <- ggplot(data = ALG1, aes(x = factor(dpi), y = CFU.ml..1cm.2/ALG1_dpi_count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "ALG1", y = "CFU/ml/ 1cm^2 per dpi")
+
+# Create bar plot for AGL1_D36E subset
+AGL1_D36E_plot <- ggplot(data = AGL1_D36E, aes(x = factor(dpi), y = `CFU/ml/ 1cm^2`/AGL1_D36E_dpi_count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "AGL1_D36E", y = "CFU/ml/ 1cm^2 per dpi")
+
+# Create bar plot for AGL1_D36E_HopM1 subset
+AGL1_D36E_HopM1_plot <- ggplot(data = AGL1_D36E_HopM1, aes(x = factor(dpi), y = `CFU/ml/ 1cm^2`/AGL1_D36E_HopM1_dpi_count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "AGL1_D36E_HopM1", y = "CFU/ml/ 1cm^2 per dpi")
+
+# Create bar plot for D36E subset
+D36E_plot <- ggplot(data = D36E, aes(x = factor(dpi), y = `CFU/ml/ 1cm^2`/D36E_dpi_count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "D36E", y = "CFU/ml/ 1cm^2 per dpi")
+
+# Combine all plots into a single plot with 4 columns
+# grid.arrange(ALG1_plot, AGL1_D36E_plot, AGL1_D36E_HopM1_plot, D36E_plot, ncol = 4)
+
+
+```
+
+```{r}
+
+view(ALG1)
+ALG1_plot
+
+```
+
+# Pseudomonas strains as factors
+```{r}
+pst_raw$Pseudomonas.strain <- as.factor(pst_raw$Pseudomonas.strain)
+head(pst_raw)
+```
+
+# log10 transformation of data for better presentation
+```{r}
+MIN <- min(pst_raw$CFU.ml..1cm.2[pst_raw$CFU.ml..1cm.2!=0]) # set lowest CFU counts as 0
+pst_raw$CFU.log10 <- log10(pst_raw$CFU.ml..1cm.2+MIN) # log 10 transformation
+```
+
+# make df containing only data I want to plot: Pst strain, CFU log10 transormed
+
+```{r}
+Pst_strain <- pst_raw$Pseudomonas.strain
+Pst_CFU <- pst_raw$CFU.log10
+Date <- as.factor(pst_raw$Date)
+
+
+simple_df <- data.frame(Pst_strain, Pst_CFU, Date)
+simple_df
+```
+
+
+# Basic Box Plots comparing Pst strains at 2 dpi and save as pdf
+# CHANGE FILE LOCATION
+```{r}
+
+# jpg command to call the pdf command to start the plot
+# CHANGE FILE LOCATION!
+
+pdf(file = "C:/Users/Le Roy/Enviormental biology/Major project/LDM20220606_CFU_count_raw.pdf",
+     width = 8,
+     height = 5)
+
+# basic boxplot
+g1 <-  ggplot(simple_df, aes(x=as.factor(Pst_strain), y=Pst_CFU)) +
+  
+  geom_boxplot(fill="white",                 # box colour
+               outlier.colour = "white",     # Outliers color, 
+               alpha=0.9) +                  # Box color transparency
+  
+  theme_bw() +  # make the bg white
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), # remove background, frame
+        axis.line = element_line(colour = "black")) +
+  
+  xlab("Pseudomonas strain") +                   # axis label
+  ylab("log10 (CFU/cm2)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # turn the tick marks on the x axis 45 degree
+  geom_jitter(shape=16, position=position_jitter(0.1),
+              aes(colour = factor(Date))) +
+  stat_boxplot(geom = "errorbar", # Error bars
+                width = 0.2)
+
+g1
+
+# Run dev.off() to create the file!
+dev.off()
+
+g1
+
+```
+
+# ANOVA
+```{r}
+# 1. ANOVA to analyse wheather there are differences between the groups
+# H0 All means are the same 
+# H1 at least one mean is different
+
+anova_pst <- aov(Pst_CFU ~ Pst_strain, data = simple_df)
+
+  {summary(anova_pst)
+    summary.lm(anova_pst)}
+
+```
+
+# Posthoc
+
+```{r}
+# 2. Posthoc to see which groups are significantly different - generate labels
+
+# save TUKEY results in .txt document
+
+
+# posthoc
+  TUKEY <- TukeyHSD(anova_pst)
+
+#save results
+  
+  generate_label_df <- function(TUKEY, variable){
+    
+    # Extract labels and factor levels from Tukey post-hoc
+    Tukey.levels <- TUKEY[[variable]][,4]
+    Tukey.labels <- data.frame(multcompLetters(Tukey.levels)['Letters'])
+    
+    #I need to put the labels in the same order as in the boxplot :
+    Tukey.labels$Pst_strain = rownames(Tukey.labels)
+    Tukey.labels=Tukey.labels[order(Tukey.labels$Pst_strain) , ]
+    return(Tukey.labels)
+    }
+
+# Apply the function on my dataset
+
+  LABELS <- generate_label_df(TUKEY , "Pst_strain")
+  
+  names(LABELS) <- c("Letters","Pst_strain")
+  
+  yvalue <- aggregate(Pst_CFU ~ Pst_strain, data = simple_df, mean) # obtain letter position for y axis using means
+  
+  LABELS$Pst_strain <- (unlist(lapply(strsplit(LABELS$Pst_strain,'[_]'),function(x){x[[1]]})))
+  
+  final <- merge(yvalue,LABELS) 
+  
+  stat_labels <- as.vector(LABELS$Letters) # extract letter column as a vector to use for plot
+  
+```
+
+# add labels of TUKEY test
+```{r}
+
+pdf(file = "C:/Users/Le Roy/Enviormental biology/Major project/LDM20220606_CFU_count_raw_st.pdf",
+     width = 8,
+     height = 6)
+
+g_st <-  ggplot(simple_df, aes(x=as.factor(Pst_strain), y=Pst_CFU)) + 
+  
+  geom_boxplot(fill="white",                 # box colour
+               outlier.colour = "white",     # Outliers color, 
+               alpha=0.9) +                  # Box color transparency
+  
+  theme_bw() +  # make the bg white
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), # remove background, frame
+        axis.line = element_line(colour = "black")) +
+  
+  xlab("Pseudomonas strain") +                   # axis label
+  ylab("log10 (CFU/cm2)") +
+  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # turn the tick marks on the x axis 45 degree +
+  expand_limits( y = c(0, 10)) +
+  
+  geom_jitter(shape=16, position=position_jitter(0.1),
+              aes(colour = factor(Date))) +
+  stat_boxplot(geom = "errorbar", # Error bars
+                width = 0.2) +
+  geom_text(data = final, aes(y=Pst_CFU, label = Letters), 
+                              vjust= -7 ,hjust= 0.5)
+
+
+g_st
+
+# Run dev.off() to create the file!
+dev.off()
+```
+
+# normalise data by corresponding D36E
+```{r}
+# average CFU of the D36E negative control for normalisation
+# extract blank data and average blank absorption
+
+#### write function to extract dates and calculate the mean ####
+
+n_control_mean <- function(df, Pst_control_strain, date) {
+  
+ D36E <- subset(df, Pst_strain == Pst_control_strain)
+ D36E_date <- subset(D36E, date == Date)
+ D36E_mean_date <- mean(D36E_date$Pst_CFU)
+ 
+ return(D36E_mean_date)
+ 
+}
+
+# List all the unique dates and store as a vector
+date <- unique(simple_df$Date)
+date <- as.vector(unlist(date))
+
+# mean of D36E control for the seperate dates and store as a vector
+n_control_mean <- lapply(date, n_control_mean, df = simple_df, Pst_control_strain = "D36")
+n_control_mean <- as.vector(unlist(n_control_mean))
+unlist(n_control_mean)
+
+# create df from control means
+df_control_mean <- data.frame(date, n_control_mean)
+
+
+#### write function to normalise CFU data points by date ####
+
+# normalise function
+general_normalise <- function(CFU_count, CFU_count_control){
+  norm <- CFU_count - CFU_count_control
+  return(norm)
+}
+
+#### function for extracting values by date, and normalise ####
+
+normalise <- function(df, date){
+  
+  CFU_date <- subset(df, Date == date)
+  CFU_date_Pst_CFU <- CFU_date$Pst_CFU
+  
+  date_mean <- df_control_mean[df_control_mean$date == date ,]
+  date_mean <- as.numeric(date_mean$n_control_mean)
+  
+  date_norm <- as.vector(general_normalise(CFU_count = CFU_date_Pst_CFU, CFU_count_control = date_mean))
+  }
+
+
+# run normalise function for all the dates of experiments, unlist and save as vector
+
+CFU_norm <- as.vector(unlist(lapply(date, normalise, df = simple_df)))
+
+# re-assamble to a simple_df
+
+simple_df$Pst_CFU_norm <- CFU_norm
+
+
+```
+
+# create simple_df_norm that only includes the normalised CFU counts 
+```{r}
+# create single vectors
+Pst_strain_n <- simple_df$Pst_strain
+Pst_CFU_n <- simple_df$Pst_CFU_norm
+Date <- as.factor(simple_df$Date)
+
+# summarise the vectors in a df
+simple_df_norm <- data.frame(Pst_strain_n, Pst_CFU_n, Date)
+
+
+# remove D36E control after normalisation
+# simple_df_norm <- subset(simple_df_norm, Pst_strain != "D36")
+
+simple_df_norm
+```
+
+# ANOVA after normalisation
+```{r}
+
+# 1. ANOVA to analyse wheather there are differences between the groups
+# H0 All means are the same 
+# H1 at least one mean is different
+
+anova_pst_norm <- aov(Pst_CFU_n ~ Pst_strain_n, data = simple_df_norm)
+
+  {summary(anova_pst_norm)
+    summary.lm(anova_pst_norm)}
+```
+
+# Posthoc
+```{r}
+
+# 2. Posthoc to see which groups are significantly different - generate labels
+
+# posthoc
+
+TUKEY_n <- TukeyHSD(anova_pst_norm)
+  
+  generate_label_df <- function(TUKEY, variable){
+    
+    # Extract labels and factor levels from Tukey post-hoc
+    Tukey.levels <- TUKEY[[variable]][,4]
+    Tukey.labels <- data.frame(multcompLetters(Tukey.levels)['Letters'])
+    
+    #I need to put the labels in the same order as in the boxplot :
+    Tukey.labels$Pst_strain = rownames(Tukey.labels)
+    Tukey.labels=Tukey.labels[order(Tukey.labels$Pst_strain) , ]
+    return(Tukey.labels)
+  }
+  
+# Apply the function on my dataset
+
+  LABELS_n <- generate_label_df(TUKEY_n , "Pst_strain_n")
+  
+  names(LABELS_n) <- c("Letters_n","Pst_strain_n")
+  
+  yvalue_n <- aggregate(Pst_CFU_n ~ Pst_strain_n, data = simple_df_norm, mean) # obtain letter position for y axis using means
+  
+  LABELS_n$Pst_strain_n <- (unlist(lapply(strsplit(LABELS_n$Pst_strain_n,'[_]'),function(x){x[[1]]})))
+  
+  final_n <- merge(yvalue_n,LABELS_n) 
+  
+  stat_labels_n <- as.vector(LABELS_n$Letters_n) # extract letter column as a vector to use for plot
+```
+
+
+
+# alternative stats Dunnett's test
+```{r}
+library("DescTools")
+dt_no_anova <- DunnettTest(Pst_CFU_n ~ Pst_strain_n, data = simple_df_norm, control = "D36", conf.level = 0.95)
+
+help("DunnettTest")
+```
+
+
+#DunnettTest(log2Norm_Fc ~ Pst_strain_n, data = FC[FC$Gene==gene & FC$Time==time,],
+ #           control = "D36", conf.level = 0.95)"
+
+# plotting after normalisation
+
+```{r}
+
+# add objects to overlay horizontal lines on plot
+D36E_df <- simple_df_norm[(simple_df_norm$Pst_strain_n == "D36"),]
+D36E_median <- mean(D36E_df$Pst_CFU_n)
+sd_plus <- D36E_median + sd(D36E_df$Pst_CFU_n)
+sd_minus <- D36E_median - sd(D36E_df$Pst_CFU_n)
+
+cbp1 <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7")
+
+# create pdf
+pdf(file = "C:/Users/Le Roy/Enviormental biology/Major project/LDM202201006_CFU_count_norm_D36E.pdf",
+     width = 8,
+     height = 5)
+
+# basic boxplot
+g2 <-  ggplot(
+  
+  #input data
+  simple_df_norm, aes(x=as.factor(Pst_strain_n), y=Pst_CFU_n)) +
+  
+  # generate basic boxplot
+  geom_boxplot(fill="white",                 # box colour
+               outlier.colour = "white",     # Outliers color, 
+               alpha=0) +                    # Box color transparency
+  
+  # overlay with jitter
+  geom_jitter(shape=16, position=position_jitter(0.1),
+              aes(colour = factor(Date))) +
+  scale_colour_manual(values = cbp1) +
+  
+  # define the theme of the boxplot
+  theme_bw() +  # make the bg white
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), # remove background, frame
+        axis.line = element_line(colour = "black")) +
+  
+  # label the axises 
+  xlab("Pseudomonas strain") +                
+  ylab("log10 fold change (CFU/cm2)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # turn the tick marks on the x axis 45 degree 
+  
+
+  # define axis limits if needed
+  expand_limits( y = c(0, 5)) +
+  
+  # add statistical information: error bars, statistical results
+  stat_boxplot(geom = "errorbar", # Error bars
+                width = 0.2)  +
+  
+  # ANOVA/TUKEY test labels
+  #geom_text(data = final_n, aes(y=Pst_CFU_n, label = Letters_n), 
+                              #vjust= -10 ,hjust= 0.5) 
+  
+  # significance for single comparisons
+  #geom_signif(comparisons = list(c("D36", "D36+AvrE1"),
+   #                              c("D36", "D36+HopM1"),
+    #                             c("D36", "D36+HopU1"),
+     #                            c("D36", "DC3000")),
+      #        map_signif_level = TRUE,
+       #       y_position = c(3, 3.5, 4, 4.5))+
+  
+              
+    ggsignif::geom_signif(
+    comparisons = list(c("D36", "D36+AvrE1"),
+                       c("D36", "D36+HopM1"),
+                       c("D36", "D36+HopU1"),
+                       c("D36", "DC3000")),
+    annotations = c("***", "***", "**", " ***"),
+    y_position = c(3, 3.5, 4, 4.5) 
+  
+  )
+    
+ # add ribbon to indicate st error of D36E
+ # geom_ribbon(aes(ymin = sd_minus, ymax = sd_plus), alpha = 1) +  
+
+# close pdf
+ggsave("LDM20221007_CFU_RLU_simple.svg",width = 7, height = 4)
+g2
+dev.off()
+
+g2
+
+# for adding dunnets test results see: https://jmbuhr.de/dataintro/freestyle.html
+  
+```
+
+# outlier detection and subsequent analysis
+
+```{r}
+# calculate Q1 and Q3 for each treatment 
+list_quantiles <- tapply(simple_df_norm$Pst_CFU_n, simple_df_norm$Pst_strain_n, quantile)
+nr_samples <- length(list_quantiles)
+ 
+Q1s <- sapply(1:nr_samples, function(i) list_quantiles[[i]][2])
+Q3s <- sapply(1:nr_samples, function(i) list_quantiles[[i]][4])
+
+# calculate IQR IQR = Q3 - Q1 for each treatement
+IQRs <- tapply(simple_df_norm$Pst_CFU_n, simple_df_norm$Pst_strain_n, IQR)
+  
+# Calculate upper and lower limits
+Lowers <- Q1s - 1.5*IQRs
+Uppers <- Q3s + 1.5*IQRs
+
+# generate df for upper and lower limits and merge them
+df_lowers <- as.data.frame(Lowers)
+df_uppers <- as.data.frame(Uppers)
+
+df_lowers <- tibble::rownames_to_column(df_lowers, "Treatment")
+df_uppers <- tibble::rownames_to_column(df_uppers, "Treatment")
+
+IQR_Pst <- merge(df_lowers, df_uppers)
+IQR_Pst$Treatment <- as.factor(IQR_Pst$Treatment) # convert Treatment into fctr so it matches the original 
+
+# add IQUR upper/lower column to summary dataframe with all CFU values
+
+df_outlier <- merge(simple_df_norm, IQR_Pst, by.x = "Pst_strain_n", by.y = "Treatment") #merge on bacteria
+
+# new column for detecting outliers to
+df_outlier$out <- ifelse(df_outlier$Pst_CFU_n < df_outlier$Lowers | df_outlier$Pst_CFU_n > df_outlier$Uppers, TRUE, FALSE )
+
+# drop data outside the lower or upper range outside the IQR for each treatment 
+df_no_outlier <- df_outlier[(df_outlier$out == FALSE),]
+
+# plut the results after removing outliers 
+
+# basic boxplot
+g2 <-  ggplot(
+  
+  #input data
+  df_no_outlier, aes(x=as.factor(Pst_strain_n), y=Pst_CFU_n)) +
+  
+  # generate basic boxplot
+  geom_boxplot(fill="white",                 # box colour
+               outlier.colour = "white",     # Outliers color, 
+               alpha=0) +                    # Box color transparency
+  
+  # overlay with jitter
+  geom_jitter(shape=16, position=position_jitter(0.1),
+              aes(colour = factor(Date))) +
+  scale_colour_manual(values = cbp1) +
+  
+  # define the theme of the boxplot
+  theme_bw() +  # make the bg white
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), # remove background, frame
+        axis.line = element_line(colour = "black")) +
+  
+  # label the axises 
+  xlab("Pseudomonas strain") +                
+  ylab("log10 fold change (CFU/cm2)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # turn the tick marks on the x axis 45 degree 
+  
+
+  # define axis limits if needed
+  expand_limits( y = c(0, 5)) +
+  
+  # add statistical information: error bars, statistical results
+  stat_boxplot(geom = "errorbar", # Error bars
+                width = 0.2)  +
+  
+  # ANOVA/TUKEY test labels
+  #geom_text(data = final_n, aes(y=Pst_CFU_n, label = Letters_n), 
+                              #vjust= -10 ,hjust= 0.5) 
+  
+  # significance for single comparisons
+  #geom_signif(comparisons = list(c("D36", "D36+AvrE1"),
+   #                              c("D36", "D36+HopM1"),
+    #                             c("D36", "D36+HopU1"),
+     #                            c("D36", "DC3000")),
+      #        map_signif_level = TRUE,
+       #       y_position = c(3, 3.5, 4, 4.5))+
+  
+              
+    ggsignif::geom_signif(
+    comparisons = list(c("D36", "D36+AvrE1"),
+                       c("D36", "D36+HopM1"),
+                       c("D36", "D36+HopU1"),
+                       c("D36", "DC3000")),
+    annotations = c("***", "***", "**", " ***"),
+    y_position = c(3, 3.5, 4, 4.5) 
+  
+  )
+
+```
+
+
+
+
+
+#----------------------------------------------------------------------------
+library(ggplot2)
+
+# Subset data for each of the four bar plots
+ALG1 <- subset(full_list, Combination == "ALG1")
+AGL1_D36E <- subset(full_list, Combination == "AGL1_D36E")
+AGL1_D36E_HopM1 <- subset(full_list, Combination == "AGL1_D36E+HopM1")
+D36E <- subset(full_list, Combination == "D36E")
+
+# Calculate number of unique values in the "dpi" column for each subset
+ALG1_dpi_count <- length(unique(ALG1$dpi))
+AGL1_D36E_dpi_count <- length(unique(AGL1_D36E$dpi))
+AGL1_D36E_HopM1_dpi_count <- length(unique(AGL1_D36E_HopM1$dpi))
+D36E_dpi_count <- length(unique(D36E$dpi))
+
+# Create bar plot for ALG1 subset
+ALG1_plot <- ggplot(data = ALG1, aes(x = factor(dpi), y = `CFU/ml/ 1cm^2`/ALG1_dpi_count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "ALG1", y = "CFU/ml/ 1cm^2 per dpi")
+
+# Create bar plot for AGL1_D36E subset
+AGL1_D36E_plot <- ggplot(data = AGL1_D36E, aes(x = factor(dpi), y = `CFU/ml/ 1cm^2`/AGL1_D36E_dpi_count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "AGL1_D36E", y = "CFU/ml/ 1cm^2 per dpi")
+
+# Create bar plot for AGL1_D36E_HopM1 subset
+AGL1_D36E_HopM1_plot <- ggplot(data = AGL1_D36E_HopM1, aes(x = factor(dpi), y = `CFU/ml/ 1cm^2`/AGL1_D36E_HopM1_dpi_count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "AGL1_D36E_HopM1", y = "CFU/ml/ 1cm^2 per dpi")
+
+# Create bar plot for D36E subset
+D36E_plot <- ggplot(data = D36E, aes(x = factor(dpi), y = `CFU/ml/ 1cm^2`/D36E_dpi_count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "D36E", y = "CFU/ml/ 1cm^2 per dpi")
+
+# Combine all plots into a single plot with 4 columns
+grid.arrange(ALG1_plot, AGL1_D36E_plot, AGL1_D36E_HopM1_plot, D36E_plot, ncol = 4)
+
+
+
+
+
+
