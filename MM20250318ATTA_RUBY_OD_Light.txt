@@ -1,0 +1,6 @@
+             Letters    Treatment
+Light_OD_0         a   Light_OD_0
+Light_OD_0.4       a Light_OD_0.4
+Light_OD_0.7       a Light_OD_0.7
+Light_OD_1         a   Light_OD_1
+Light_OD_1.3       a Light_OD_1.3

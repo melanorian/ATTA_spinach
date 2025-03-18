@@ -1,0 +1,44 @@
+[1] "Zero Modeling: OD 0 included"
+
+Call:
+glm(formula = Expression ~ experiment + OD, family = "binomial", 
+    data = df)
+
+Coefficients:
+                Estimate Std. Error z value Pr(>|z|)    
+(Intercept)      -1.0154     0.3214  -3.159  0.00158 ** 
+experimentLight   0.1742     0.3037   0.574  0.56625    
+OD                1.4346     0.3498   4.101 4.11e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 266.15  on 191  degrees of freedom
+Residual deviance: 247.56  on 189  degrees of freedom
+AIC: 253.56
+
+Number of Fisher Scoring iterations: 4
+
+[1] "Zero Modeling: OD 0 excluded"
+
+Call:
+glm(formula = Expression ~ experiment + OD, family = "binomial", 
+    data = df_no_zero_OD)
+
+Coefficients:
+                Estimate Std. Error z value Pr(>|z|)  
+(Intercept)       1.0114     0.4942   2.047   0.0407 *
+experimentLight   0.2971     0.3400   0.874   0.3822  
+OD               -0.7274     0.5089  -1.430   0.1529  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 200.07  on 151  degrees of freedom
+Residual deviance: 197.21  on 149  degrees of freedom
+AIC: 203.21
+
+Number of Fisher Scoring iterations: 4
+

@@ -1,0 +1,10 @@
+
+> print(LABELS)
+            Letters   Treatment
+Dark_OD_0         a   Dark_OD_0
+Dark_OD_0.4       a Dark_OD_0.4
+Dark_OD_0.7       a Dark_OD_0.7
+Dark_OD_1         a   Dark_OD_1
+Dark_OD_1.3       a Dark_OD_1.3
+
+> sink()
