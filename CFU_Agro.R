@@ -84,7 +84,8 @@ ggsave(filename =  paste0("ATTA_CFU_count_Agl_boxplot.svg"),
 #      H0 All means are the same 
 #      H1 at least one mean is different
 
-anova_pst <- aov(Pst_CFU ~ Pst_exp_date, data = simple_df_agl)
+df_stats <- simple_df_agl[simple_df_agl$combination == "AGL1_D36E+HopM1",]
+anova_pst <- aov(Pst_CFU ~ Pst_exp_date, data = df_stats)
 
 {summary(anova_pst)
   summary.lm(anova_pst)}
@@ -112,7 +113,7 @@ LABELS <- generate_label_df(TUKEY , "Pst_exp_date")
 names(LABELS) <- c("Letters","Pst_strain")
 
 # 4.3.3 safe TUKEY test results
-sink(paste(pre, sep = "","ATTA_CFU_count_Agl.txt"))
+sink(paste(pre, sep = "","ATTA_CFU_count_Agl-AGL1_D36E+HopM1.txt"))
 print(LABELS)
 sink()
 

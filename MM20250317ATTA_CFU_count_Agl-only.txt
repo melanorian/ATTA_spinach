@@ -1,4 +1,0 @@
-          Letters Pst_strain
-AminusTwo       b  AminusTwo
-Bzero           a      Bzero
-Cthree          a     Cthree
