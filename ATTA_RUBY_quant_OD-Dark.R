@@ -38,7 +38,9 @@ f_boxplot <- function(df, x_data, y_data) {
     labs(x = "OD", y = "Percentage Leaf Area", color = "OD") +
     
     # Custom colors for scatter points and boxplots
-    scale_color_manual(values = c("#E69F00", "#E69F00", "#E69F00", "#E69F00", "#E69F00"))
+    scale_color_manual(values = c("#E69F00", "#E69F00", "#E69F00", "#E69F00", "#E69F00")) +
+    
+    coord_cartesian(ylim = c(0, 30))
   
   return(p)
 }
@@ -55,21 +57,87 @@ plots <- lapply(df_list, function(sub_df) {
 p_dark <- plots$Dark  # Plot for "Dark" experiment
 p_light <- plots$Light # Plot for "Light" experiment
 
+# Explore distribution - Os
+# Example histogram of 'percentage_leaf_area' in your dataframe
+df_no_control <-lapply(df_list, function(x) x[!grepl("OD_0$", x$experiment_OD_OD), ])
+
+p_hist <- ggplot(df_no_control$Dark, aes(x = percentage_leaf_area)) +
+  geom_histogram(binwidth = 0.5, fill = "#E69F00", color = "black", alpha = 1.0) +
+ coord_cartesian(xlim = c(0, 28), ylim = c(0, 45)) +
+  theme_minimal() +
+  labs(title = "Histogram of Percentage Leaf Area", x = "Percentage Leaf Area", y = "Frequency")
+
+# # Safe plots
+ggsave(filename =  paste0("MM20250326_ATTA_RUBY_darkOD_his.svg"),
+       plot = p_hist,
+       device = "svg")
+
+# Compare zero counts light/dark
+zero_sum <- df_no_control$Light %>%
+summarise(
+count_zero = sum(percentage_leaf_area == 0),
+count_between_0_and_1 = sum(percentage_leaf_area > 0 & percentage_leaf_area < 1),
+total_count = n()
+) %>%
+mutate(
+percent_zero = (count_zero / total_count) * 100,
+percent_between_0_and_1 = (count_between_0_and_1 / total_count) * 100
+)
+
+# Total number of observations in each dataset
+total_light <- 75
+total_dark <- 77
+
+# Number of values >1 (computed as remaining values)
+count_above_1_light <- total_light - (25 + 26)  # Remaining values in OD_light
+count_above_1_dark <- total_dark - (31 + 24)    # Remaining values in OD_dark
+
+# Create contingency table
+counts_matrix <- matrix(c(
+  25, 26, count_above_1_light,  # OD_light
+  31, 24, count_above_1_dark    # OD_dark
+), nrow = 2, byrow = TRUE)
+
+rownames(counts_matrix) <- c("OD_light", "OD_dark")
+colnames(counts_matrix) <- c("Zero", "Between_0_and_1", ">1")
+
+# Perform Chi-Square test
+chi_test <- chisq.test(counts_matrix)
+
 # Safe plots
-# ggsave(filename =  paste0("ATTA_RUBY_darkOD_boxplot.svg"), 
-#        plot = p_dark,
+# ggsave(filename =  paste0("ATTA_RUBY_lighOD_his.svg"),
+#        plot = p_hist,
 #        device = "svg")
 # 
 # ggsave(filename =  paste0("ATTA_RUBY_lightOD_boxplot.svg"), 
 #        plot = p_light,
 #        device = "svg")
 
+# REMOVE zeros from dataset 
+# Apply filtering to all dataframes in df_list
+df_zerofree <- lapply(df_list, function(df) {
+  df[df$percentage_leaf_area > 0 | grepl("OD_0$", df$experiment_OD_OD), ]
+})
+
+# Apply f_boxplot() to each subset using lapply()
+plots_zerofree <- lapply(df_zerofree, function(sub_df) {
+  f_boxplot(sub_df, x_data = sub_df$experiment_OD_OD, y_data = sub_df$percentage_leaf_area)
+})
+
+# Assign plots to sperate variables
+p_dark <- plots_zerofree$Dark  # Plot for "Dark" experiment
+p_light <- plots_zerofree$Light # Plot for "Light" experiment
+
+ggsave(filename =  paste0("ATTA_RUBY_darkOD_noZero_box.svg"),
+       plot = p_dark,
+       device = "svg")
+
 # 4. Statistical analysis across samples using ANOVA+TUKEY ----
 # 4.1. ANOVA to analyse whether there are differences between the groups
 #      H0 All means are the same 
 #      H1 at least one mean is different
 
-df_stats <- df_list$Dark
+df_stats <- df_zerofree$Light
 anova_pst <- aov(percentage_leaf_area ~ experiment_OD_OD, data = df_stats)
 
 {summary(anova_pst)
@@ -98,12 +166,69 @@ LABELS <- generate_label_df(TUKEY , "experiment_OD_OD")
 names(LABELS) <- c("Letters","Treatment")
 
 # 4.3.3 safe TUKEY test results
-# sink(paste(pre, sep = "","ATTA_RUBY_OD_Dark.txt"))
-# print(LABELS)
-# sink()
+sink(paste(pre, sep = "","ATTA_RUBY_OD_Light_noZero.txt"))
+print(LABELS)
+sink()
 
 ################################################################################
 ############################## Light vs Dark ###################################
+################################################################################
+df_zerofree <-df[df$percentage_leaf_area > 0 | grepl("OD_0$", df$experiment_OD_OD), ]
+
+co <- c("#44AA99", "#E69F00") # define 2 colours 
+
+
+# Grouped boxplot using ggplot
+p_grouped <- ggplot(df_zerofree, aes(x = as.factor(OD), y = percentage_leaf_area, color = experiment, fill = experiment)) +
+  geom_boxplot(outlier.colour = "white", alpha = 0, position = position_dodge(width = 0.75)) +  # Group boxplots side by side
+  labs(x = "OD", y = "RUBY %") +
+  geom_point(position = position_jitterdodge(jitter.width = 0.1, dodge.width = 0.75)) +  # Add jittered points
+  theme_classic() +
+  guides(x = guide_axis(angle = 45)) +  # Rotate x-axis labels for clarity
+  scale_fill_manual(values = co) +  # Apply custom colors to fill
+  scale_color_manual(values = co)   # Apply custom colors to color
+
+
+ggsave(filename =  paste0("MM20250326_ATTA_RUBY_darkVSlight_boxplot.svg"),
+       plot = p_grouped,
+       device = "svg")
+
+# 5. Statistical analysis that compares for each OD, Pst strain 0dpi and 2dpi (or days of interest)
+# 5. Statistical analysis using a two-sided t-test ---- 
+
+# 5.1 DEFINE VARIABLES OF INTEREST
+OD <- unique(df_zerofree$OD) # extract the ODs from the orginal df
+d1 <- "Light"  # Defines the reference dpi (usally 0dpi), epxeriment_date column as input  
+d2 <- "Dark"  # Defines dpi of interest, usually 2dpi, epxeriment_date column as input
+
+subset_df <- split(df_zerofree, df_zerofree$OD)
+
+# df <- subset_df$'0'
+# date1 <- d1
+# date2 <- d2
+
+tt <- function(df, OD, date1, date2) {
+  a <- as.data.frame(df)
+  gr1 <- a[(a$experiment == date1), ]
+  gr2 <- a[(a$experiment == date2), ]
+  b <- t.test(gr1$percentage_leaf_area, gr2$percentage_leaf_area, alternative = "two.sided", var.equal = TRUE)
+  return(b$p.value)
+}
+
+result_list <- lapply(subset_df, tt, date1 = d1, date2 = d2)
+df_t_res <- unlist(result_list)
+
+# # 5.8 Update the significance column based on the p-value
+# df_t_res[df_t_res$p_value > 0.05, "significance"] <- "n.s"
+# df_t_res[df_t_res$p_value < 0.05, "significance"] <- "*"
+# df_t_res[df_t_res$p_value < 0.01, "significance"] <- "**"
+# df_t_res[df_t_res$p_value < 0.001, "significance"] <- "***"
+# 
+# # 5.9 safe the output as a .txt file
+# sink(paste(pre, sep = "","_tt_summary_CUF_Pst_strains.txt"))
+# print(df_t_res)
+# sink()
+
 ################################################################################
 
 # Example data (you can use your actual data frame)

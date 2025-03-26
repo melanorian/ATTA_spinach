@@ -70,7 +70,7 @@ p_agl <- ggplot(simple_df_agl, aes(x = as.factor(combination), y = Pst_CFU, fill
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # Rotate x-axis labels
   scale_fill_manual(values = c("white", "white", "white")) +  # Fill colors for boxes
   scale_color_manual(values = co) +  # Colors for scatter points
-  ylim(0, 9)
+  ylim(0, 8)
 
 p_agl
 
@@ -116,4 +116,69 @@ names(LABELS) <- c("Letters","Pst_strain")
 sink(paste(pre, sep = "","ATTA_CFU_count_Agl-AGL1_D36E+HopM1.txt"))
 print(LABELS)
 sink()
+
+###############################################################################
+
+pst_raw <- read_xlsx("/home/melanie/working_directory/D36E_assays/ATTA_spinach/LDM20230524_CFU_count_with_DC3000.xlsx")
+
+# 2. Select/ filter data ----
+# 2.1 Bacteria strains as factors
+pst_raw$Bacteria.strain <- as.factor(pst_raw$Bacterial_strain)
+pst_raw$Combination <- as.factor(pst_raw$Combination)
+#pst_raw$Date <- as.factor(pst_raw$dpi)
+pst_raw$Date <- as.factor(
+  ifelse(pst_raw$dpi == -2, "AminusTwo",
+         ifelse(pst_raw$dpi == 0, "Bzero",
+                ifelse(pst_raw$dpi == 3, "Cthree", pst_raw$dpi)))
+)
+
+# remove rows with NA (if extra rows are loaded)
+# pst_raw <- pst_raw[1:210,]
+
+# 2.2 log10 transformation of data for better presentation
+
+#MIN <- min(pst_raw$`Calculate.CFU/ml.per.1.cm2.of.harvested.leaf`[pst_raw$`Calculate.CFU/ml.per.1.cm2.of.harvested.leaf`!=0]) # set lowest CFU counts as 0
+pst_raw$CFU.log10 <- log10(pst_raw$`CFU/ml/1cm^2`+1)
+
+
+# 2.3 make df containing only data I want to plot: Pst strain, CFU log10 transormed
+Pst_strain <- as.factor(pst_raw$Bacteria.strain)
+combination <- pst_raw$Combination
+Pst_CFU <- pst_raw$CFU.log10
+Pst_exp_date <- as.factor(pst_raw$Date)
+ab <- pst_raw$`antibiotic plate`
+#Pst_OD <- pst_raw$OD6000.infiltrated.0dpi
+#Pst_comment <- pst_raw$Comment
+
+simple_df <- data.frame(Pst_strain, combination, Pst_exp_date, Pst_CFU, ab)
+simple_df <- subset(simple_df, Pst_strain %in% c("D36E", "AGL1_D36E", "DC3000", "AGL1_DC3000"))
+
+simple_df_pst <- simple_df[simple_df$Pst_strain == "Pseudomonas",]
+simple_df_agl <- simple_df[simple_df$Pst_strain == "AGL1",]
+simple_df_two <- simple_df[simple_df$Pst_strain == "AGL1_and_Pseudomonas",]
+
+# 2.4 Filter for group of interest
+# simple_df_agl <- simple_df[simple_df$Pst_strain == "AGL1",]
+# simple_df_agl <- simple_df_agl[simple_df_agl$Pst_CFU != 0, ]
+
+co <- c("#5b5d5cff", "#44AA99", "#E69F00")  # Define colors
+co <- c("#44AA99", "#E69F00")  # Define colors
+
+p_agl <- ggplot(simple_df_pst, aes(x = as.factor(combination), y = Pst_CFU, fill = Pst_exp_date)) +
+  geom_boxplot(outlier.colour = "red", alpha = 0.9, 
+               color = "black",  # Black outlines, whiskers, and median
+               fatten = 2) +  # Thicker median line
+  labs(x = "Pst_exp_date", y = "log10 (CFU/cm2)") +
+  geom_point(aes(color = Pst_exp_date), position = position_jitterdodge(0.1)) +  # Scatter colored by date
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # Rotate x-axis labels
+  scale_fill_manual(values = c("white", "white", "white")) +  # Fill colors for boxes
+  scale_color_manual(values = co) +  # Colors for scatter points
+  ylim(0, 9)
+
+p_agl
+
+ggsave(filename =  paste0("ATTA_CFU_count_Agl_boxplot.svg"), 
+       plot = p_agl,
+       device = "svg")
 
